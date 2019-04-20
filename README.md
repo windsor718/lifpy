@@ -14,30 +14,49 @@ lispy.PreProcess() instance has toolkits to create the geographical forcing to r
 lispy.PreProcess.preprocess(upareaFile,elevationFile,widthFile,threshold,args*)  
 Create a geographical input files from single tile of hydrography data.  
 Positional arguments:  
-+ upareaFile(str): file path to the uparea file.  
-+ elevationFile(str): file path to the elevation file.  
-+ widthFile(str): file path to the width file.  
-+ threshold(int or float): upstream area threshold to extract rivers. The raster pixels having upstream area above this threshold will be a river.  
++ upareaFile(str):  
+  + file path to the uparea file.  
++ elevationFile(str):  
+  + file path to the elevation file.  
++ widthFile(str):  
+  + file path to the width file.  
++ threshold(int or float):  
+  + upstream area threshold to extract rivers. The raster pixels having upstream area above this threshold will be a river.  
   
 Optional arguments:  
-+ domain(list): Default None. your model domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]. The output files will be sliced to fit this domain. Note that nearest value within this domain will be selected and no interpoltion will be happened to secure the hydrography infromation.  
-+ latName(str): Default y. The dimension name in the latitudinal axis.  
-+ lonName(str): Default x. The dimension name in the longitudinal axis.  
-+ bandNum(int): Default 0. The band number that stores your data.  
++ domain(list):  
+  + Default None. your model domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]. The output files will be sliced to fit this domain. Note that nearest value within this domain will be selected and no interpoltion will be happened to secure the hydrography infromation.  
++ latName(str): Default y.  
+  + The dimension name in the latitudinal axis.  
++ lonName(str): Default x.  
+  * The dimension name in the longitudinal axis.  
++ bandNum(int): Default 0. 
+  * The band number that stores your data.  
   
 Note that no parallelization is implemented in this function. If your domain is small enough compared to an original hydrography file (usually devided into tiles), using this function may be efficient.  
   
+  
 lispy.PreProcess.mfpreprocess(upareaFiles,elevationFiles,widthFiles,threshold,nCols,nRows,args*)  
 Same as the preprocess(), but implemented with parallelization. Suitable for the large domain. The mfpreprocess() can also read multiple input sources and concatenate them based on nCols and nRows information. The input file list should be aligned with C order.  
-Positional arguments:
-+ upareaFiles(list): list pf file paths to the uparea file.
-+ elevationFiles(list): list of file paths to the elevation file.
-+ widthFiles(list): list of file paths to the width file.
-+ threshold(int or float): upstream area threshold to extract rivers. The raster pixels having upstream area above this threshold will be a river.
-+ nCols(int): number of tiles (files) in columns (longitudinal axis).  
-+ nRows(int): number of tiles (files) in rows (latitudinal axis).  
+Positional arguments:  
++ upareaFiles(list):  
+  * list pf file paths to the uparea file.
++ elevationFiles(list):  
+  * list of file paths to the elevation file.
++ widthFiles(list):  
+  * list of file paths to the width file.
++ threshold(int or float):  
+  * upstream area threshold to extract rivers. The raster pixels having upstream area above this threshold will be a river.
++ nCols(int):  
+  * number of tiles (files) in columns (longitudinal axis).  
++ nRows(int):  
+  * number of tiles (files) in rows (latitudinal axis).  
 Optional arguments:
-+ domain(list): Default None. your model domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]. The output files will be sliced to fit this domain. Note that nearest value within this domain will be selected and no interpoltion will be happened to secure the hydrography infromation.
-+ latName(str): Default y. The dimension name in the latitudinal axis.
-+ lonName(str): Default x. The dimension name in the longitudinal axis.
-+ bandNum(int): Default 0. The band number that stores your data.
++ domain(list): Default None.  
+  * your model domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]. The output files will be sliced to fit this domain. Note that nearest value within this domain will be selected and no interpoltion will be happened to secure the hydrography infromation.
++ latName(str): Default y.  
+  * The dimension name in the latitudinal axis.
++ lonName(str): Default x.  
+  * The dimension name in the longitudinal axis.
++ bandNum(int): Default 0.  
+  * The band number that stores your data.
