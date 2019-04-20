@@ -4,7 +4,7 @@ This is a Python toolkit to prepare data for, handle, and visualize the results 
 You need to prepare geographical (DEM, river width, etc.) and hydrological (input hydrograph) boundary condition to run LISFLOOD-FP.  
 lispy enables to reduce the pain to prepare those inputs.  
 ### 1.1 Making geographical boundary condition.  
-lispy.PreProcess() instance has toolkits to create the geographical forcing to run LISFLOOD-FP. The operation is done by lazy lodeing and parallelization using the Dask and Xarray, resulting in fast and memory efficient processing even with large data.  
+lispy.PreProcess() instance has toolkits to create the geographical forcing to run LISFLOOD-FP. The operation is done by lazy loading and parallelization using the Dask and Xarray, resulting in fast and memory efficient processing even with large data.  
 #### What you need.  
 * HYDROGRAPHY DATA:  
   * DEM (Hydrologically corrected), river width, and upstream area in a GeoTiff format.  
@@ -51,6 +51,7 @@ Positional arguments:
   * number of tiles (files) in columns (longitudinal axis).  
 + nRows(*int*):  
   * number of tiles (files) in rows (latitudinal axis).  
+  
 Optional arguments:
 + domain(*list*): Default None.  
   * your model domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]. The output files will be sliced to fit this domain. Note that nearest value within this domain will be selected and no interpoltion will be happened to secure the hydrography infromation.
