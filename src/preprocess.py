@@ -1,3 +1,26 @@
+# -*- coding: utf-8 -*-a
+"""
+Dependency:
+    rasterio > 1.0.0
+    xarray > 0.11.3
+Class:
+    PreProcess()
+RequiredData: 
+    Hydrography (upstream area, surface elevation (hydrologically corrected), and river width) information.
+        Now only a geotiff format is supported, but it should be very easy to implement netCDF format.
+UserCaution: 
+    Please make sure that you assure the RAM storage enough to contain 
+        1.5 or 2 x (your data size for one variable (e.g., elevation) for your WHOLE DOMAIN)
+        even if you are using mfpreprocess.
+
+    The mfpreprocess stores mapped object (lazy loaded) in a format of dask array and xarray as possible as we can,
+        but it will compile your data when it dumps to the txt format.
+        This means that you will need a RAM at least the size of your single variable data.
+
+    Note that you can also reduce the total size of the output domain by specifying domain
+        ([llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]) as an optional argument,
+        which cuts off the unneeded edge of your input tiles.
+"""
 import gc
 import os
 import sys
@@ -9,29 +32,15 @@ import pandas as pd
 import xarray as xr
 
 
+
 class PreProcess(object):
-    """
-    Description: Preprocessing the hydrography data into the LISFLOOD-FP friendly (most of them are ARC ascii format) format.
-    Dependency: rasterio > 1.0.0
-                xarray > 0.11.3
-    Methods: preprocess(*args): serial computation with single input data. This assumes that your model domain is included in a single file.
-                                No parallelization is implemented.
-             mfpreprocess(*arg): parallel computation with multiple input data. This assumes that your model domain is located over multiple files.
-                                 Note that you can use this with single input data but with parallel computation.
-                                 If your input file is very large enough to contain your whole domain, this would be a option you may think.
-    Required data: Hydrography (upstream area, surface elevation (hydrologically corrected), and river width) information.
-                   Now only a geotiff format is supported, but it should be very easy to implement netCDF format.
-    User caution: Please make sure that you assure the RAM storage enough to contain 1.5 or 2 x (your data size for one variable (e.g., elevation) for your WHOLE DOMAIN)
-                      even if you are using mfpreprocess.
-                  The mfpreprocess stores mapped object (lazy loaded) in a format of dask array and xarray as possible as we can,
-                      but it will compile your data when it dumps to the txt format.
-                  This means that you will need a RAM at least the size of your single variable data.
-                  Note that you can also reduce the total size of the output domain by specifying domain
-                      ([llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]) optional argument,
-                      by cutting off the unneeded edge of your input tiles.
-    """
+    """Preprocessing the hydrography data into the LISFLOOD-FP friendly (most of them are ARC ascii format) format."""
 
     def __init__(self):
+        """
+        Attributes:
+            undef (float): the undefined, or no data, value.
+        """
         self.undef = -9999.
 
     # Basic IO components
@@ -41,7 +50,19 @@ class PreProcess(object):
                     lonName="x",
                     bandNum=0,
                     domain=None):
-        """Read geotiff formatted file with rasteio API in xarray"""
+        """Read geotiff formatted file with rasteio API in xarray
+        Args:
+            fileName (str): geotiff file path.
+            latName (str): Default y. The dimensional name of latitudinal axis. 
+            lonName (str): Default x. The dimensional name of longitudinal axis.
+            bandNum (int): Default 0. The index of band that your data is stored.
+            domain (list or NoneType): Default None. The boundary lat/lon of your domain. 
+                                           [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
+        Returns:
+            numpy.ndarray: 2d array of input raster data
+            numpy.ndarray: 1d array of input latitudinal series
+            numpy.ndarray: 1d arary of input longitudinal series
+        """
         data = xr.open_rasterio(fileName).rename({
             latName: "lat",
             lonName: "lon"
@@ -64,9 +85,21 @@ class PreProcess(object):
                       domain=None,
                       memLat=1,
                       memLon=1):
-        """
-        Read multiple geotiff files (tiles) and organize them as a dask array.
-        Note: the input file list should be aligned in the C-order (cols>rows).
+        """Read multiple geotiff files (tiles) and organize them as a dask array.
+        Note:
+            the input file list should be aligned with the C-order (cols>rows).
+
+        Args:            fileName (str): geotiff file path.
+            latName (str): Default y. The dimensional name of latitudinal axis.
+            lonName (str): Default x. The dimensional name of longitudinal axis.
+            bandNum (int): Default 0. The index of band that your data is stored.
+            domain (list or NoneType): Default None. The boundary lat/lon of your domain.
+                                       [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
+
+        Returns:
+            numpy.ndarray: 2d array of input raster data
+            numpy.ndarray: 1d array of input latitudinal series
+            numpy.ndarray: 1d arary of input longitudinal series
         """
         # lazy load all data as tiles
         idx = 0
@@ -100,6 +133,13 @@ class PreProcess(object):
         return values, lats, lons, cellsize
 
     def __domainSlice(self, dataset, domain):
+        """Slicing data with a given domain.
+        Args:
+            dataset (xarray.dataset): input xarray dataeset
+            domain (list): list of the domain [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]
+        Returns:
+            xarray.dataset
+        """
 
         llcrnrlat = domain[0]
         llcrnrlon = domain[1]
@@ -114,7 +154,17 @@ class PreProcess(object):
         return dataset
 
     def makeHeader(self, lats, lons, cellsize, order="NS"):
-        """Make a header for the lisflood-fp model"""
+        """Make a header for the lisflood-fp model
+        Args:
+            lats (numpy.ndarray): latitudinal series
+            lons (numpy.ndarray): longitudinal series
+            cellsize (float): The size of raster grid
+            order (str): NS or SN, default NS. The ordor of latitudinal series.
+        Returns:
+            str: header lines
+        Exceptions:
+            IOError: if other than NS or SN order was specified.
+        """
         nrows = len(lats)
         ncols = len(lons)
         if order == "NS":
@@ -129,7 +179,14 @@ class PreProcess(object):
         return header
 
     def dump(self, array2D, header, fileName):
-        """dump data and header into the file (filename)"""
+        """dump data and header into the file (filename)
+        Args:
+            array2D (numpy.ndarray): 2d array of your raster data
+            header (str): header lines
+            fileName (str): the name of output file (path)
+        Returns:
+            None
+        """
         df = pd.DataFrame(array2D)
         with open(fileName, "w") as f:
             f.write(header)
@@ -137,10 +194,19 @@ class PreProcess(object):
             df.to_csv(f, header=False, index=False)
 
     def daskDump(self, darray2D, header, fileName):
-        """
-        dump dask array and header into the file (filename).
-        Note that you need at least more storage in RAM than the actual your 2D domain size,
-        as here dask finally compile your data.
+        """dump dask array and header into the file (filename).
+        
+        Note:
+            You need at least more storage in RAM than the actual your 2D domain size,
+            as here dask finally compile your data.
+        
+        Args:
+            darray2D (dask.array): dask array of your raster data
+            header (str): header lines
+            fileName (str): the name of output file (path)
+
+        Returns:
+            None
         """
         df = (dd.from_dask_array(darray2D)).compute()
         with open(fileName, "w") as f:
@@ -152,7 +218,14 @@ class PreProcess(object):
 
     # Specific operation toward the hydrography
     def defineRivers(self, upareaMap, thsld):
-        """Define boolean river network map"""
+        """Define boolean river network map
+        Args:
+            upareaMap (numpy.ndarray or xarray.DataArray): 2d array of upstream area size
+            thsld (float): threshold number to extract rivers
+
+        Returns:
+            numpy.ndarray or xarray.DataArray: boolean river network map
+        """
         rivMap = upareaMap > thsld  # boolean Array
         return rivMap
 
