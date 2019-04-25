@@ -1,18 +1,18 @@
+import gc
+import os
 import sys
 
 import dask as ds
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-
 import xarray as xr
 
 
 class PreProcess(object):
     """
     Description: Preprocessing the hydrography data into the LISFLOOD-FP friendly (most of them are ARC ascii format) format.
-    Dependency: rasterio > 1.0.0 (Note that rasterio and xarray may have a version conflict, as the rasterio API from xarray is fairly optional.
-                                  The working version is rasterio=1.0.0 and xarray=0.11.3)
+    Dependency: rasterio > 1.0.0
                 xarray > 0.11.3
     Methods: preprocess(*args): serial computation with single input data. This assumes that your model domain is included in a single file.
                                 No parallelization is implemented.
@@ -74,10 +74,12 @@ class PreProcess(object):
         for row in range(0, nRows):
             rowTiles = []
             for col in range(0, nCols):
+                print(files[idx])
                 data = xr.open_rasterio(files[idx]).rename({
                     latName: "lat",
                     lonName: "lon"
                 })
+                idx = idx + 1
                 rowTiles.append(data)
             rowTiles = xr.concat(rowTiles, dim="lon")
             mapTiles.append(rowTiles)
@@ -146,6 +148,7 @@ class PreProcess(object):
         with open(fileName, "a") as f:
             df.to_csv(f, header=False, index=False)
         del df
+        gc.colloct()
 
     # Specific operation toward the hydrography
     def defineRivers(self, upareaMap, thsld):
@@ -166,6 +169,16 @@ class PreProcess(object):
         array2d = ds.array.where(rivMap, x=darray2d, y=self.undef)
         return array2d
 
+    def cacheAsNc(self, array2d, lats, lons, name):
+        data = xr.DataArray(
+            array2d, coords={
+                "lat": lats,
+                "lon": lons
+            }, dims=["lat","lon"], name=name)
+        if not os.path.exists("./cache/"):
+            os.makedirs("./cache/")
+        data = data.to_netcdf("./cache/%s.nc" % name)
+
     # Main modules to make input topography data
     def preprocess(self,
                    upaPath,
@@ -183,27 +196,31 @@ class PreProcess(object):
         If it is not a case (your domain is within multiple files), use mfpreprocess().
         """
         # make .dem.ascii
-        elv, lats, lons, cellsize = self.readGeoTiff(elvPath,
-                                                     latName=latName,
-                                                     lonName=lonName,
-                                                     bandNum=bandNum,
-                                                     doamin=domain)
+        elv, lats, lons, cellsize = self.readGeoTiff(
+            elvPath,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            doamin=domain)
         header = self.makeHeader(lats, lons, cellsize)
         oName = "%s.dem.ascii" % prefix
         self.dump(elv, header, oName)
         # make river network
-        uparea, *_ = self.readGeoTiff(upaPath,
-                                      latName=latName,
-                                      lonName=lonName,
-                                      bandNum=bandNum,
-                                      domain=domain)
+        uparea, *_ = self.readGeoTiff(
+            upaPath,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            domain=domain)
+        self.cacheAsNc(uparea, lats, lons, "uparea")
         rivMap = self.defineRivers(uparea, thsld)
         # make .width.asc
-        width, *_ = self.readGeoTiff(wthPath,
-                                     latName=latName,
-                                     lonName=lonName,
-                                     bandNum=bandNum,
-                                     domain=domain)
+        width, *_ = self.readGeoTiff(
+            wthPath,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            domain=domain)
         width = self.maskNoRivers(width, rivMap)
         oName = "%s.width.asc" % prefix
         self.dump(width, header, oName)
@@ -231,43 +248,49 @@ class PreProcess(object):
         Same as preprocess but from multiple files. Designed to reduce required memory as small as possible.
         """
         # make .dem.ascii
-        elv, lats, lons, cellsize = self.mfreadGeoTiff(elvPath,
-                                                       nCols,
-                                                       nRows,
-                                                       latName=latName,
-                                                       lonName=lonName,
-                                                       bandNum=bandNum,
-                                                       domain=domain,
-                                                       memLat=memLat,
-                                                       memLon=memLon)
+        elv, lats, lons, cellsize = self.mfreadGeoTiff(
+            elvPath,
+            nCols,
+            nRows,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            domain=domain,
+            memLat=memLat,
+            memLon=memLon)
         header = self.makeHeader(lats, lons, cellsize)
+        print("output file informaton:\n%s"%header)
         oName = "%s.dem.ascii" % prefix
         print("%s" % oName)
         self.daskDump(elv, header, oName)
 
         #make river network
-        uparea, *_ = self.mfreadGeoTiff(elvPath,
-                                        nCols,
-                                        nRows,
-                                        latName=latName,
-                                        lonName=lonName,
-                                        bandNum=bandNum,
-                                        domain=domain,
-                                        memLat=memLat,
-                                        memLon=memLon)
+        uparea, *_ = self.mfreadGeoTiff(
+            upaPath,
+            nCols,
+            nRows,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            domain=domain,
+            memLat=memLat,
+            memLon=memLon)
+        self.cacheAsNc(uparea, lats, lons, "uparea")
         rivMap = self.defineRivers(uparea, thsld)
         del uparea
+        gc.collect()
 
         #make .width.asc
-        width, *_ = self.mfreadGeoTiff(elvPath,
-                                       nCols,
-                                       nRows,
-                                       latName=latName,
-                                       lonName=lonName,
-                                       bandNum=bandNum,
-                                       domain=domain,
-                                       memLat=memLat,
-                                       memLon=memLon)
+        width, *_ = self.mfreadGeoTiff(
+            wthPath,
+            nCols,
+            nRows,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            domain=domain,
+            memLat=memLat,
+            memLon=memLon)
         width = self.lazyMaskNoRivers(width, rivMap)
         oName = "%s.width.asc" % prefix
         self.daskDump(width, header, oName)
@@ -282,19 +305,19 @@ class PreProcess(object):
 
 if __name__ == "__main__":
     upaPaths = [
-        "./deploy/MERIT_HYDRO/upa/upa_n30w090/n35w090_upa.tif",
-        "./deploy/MERIT_HYDRO/upa/upa_n30w090/n35w085_upa.tif"
+        "./deploy/MERIT_HYDRO/upa/upa_n30w120/n35w100_upa.tif",
+        "./deploy/MERIT_HYDRO/upa/upa_n30w120/n35w095_upa.tif"
     ]
     elvPaths = [
-        "./deploy/MERIT_HYDRO/elv/elv_n30w090/n35w090_elv.tif",
-        "./deploy/MERIT_HYDRO/elv/elv_n30w090/n35w085_elv.tif"
+        "./deploy/MERIT_HYDRO/elv/elv_n30w120/n35w100_elv.tif",
+        "./deploy/MERIT_HYDRO/elv/elv_n30w120/n35w095_elv.tif"
     ]
     wthPaths = [
-        "./deploy/MERIT_HYDRO/wth/wth_n30w090/n35w090_wth.tif",
-        "./deploy/MERIT_HYDRO/wth/wth_n30w090/n35w085_wth.tif"
+        "./deploy/MERIT_HYDRO/wth/wth_n30w120/n35w100_wth.tif",
+        "./deploy/MERIT_HYDRO/wth/wth_n30w120/n35w095_wth.tif"
     ]
     nCols = 2
     nRows = 1
     thsld = 24.04
     test = PreProcess()
-    test.mfpreprocess(upaPaths, elvPaths, wthPaths, thsld)
+    test.mfpreprocess(upaPaths, elvPaths, wthPaths, thsld, nCols, nRows)
