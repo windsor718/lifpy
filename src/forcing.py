@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-a
+"""
+
+Dependency:
+    xarray > 0.11.3
+    numba
+
+Class:
+    Forcing()
+
+RequiredData:
+    Discharge dataset containing discharge time series over multipke points.
+    Point information file containing point coordinates and upstream area information.
+
+Todo:
+    [makeForcing] Support NSEW source. Current version only supports the "P" source identifer and QVAR in a subgrid configuration.
+"""
+
 import gc
 import os
 
@@ -10,7 +28,18 @@ from numba import jit
 
 
 class Forcing(object):
+    """Generate forcing files for LISFLOOD-FP from input discharge file."""
     def __init__(self):
+        """
+        Attributes:
+            undef (int): undefined value for your output file.
+            buf (int): buffer number to search model grid when adjusting latlon. Larger number may cause to pick wrong (too far) point.
+            thsld (float): a threshold number in a fraction. allowable error in upstream size.
+            distance (float): a threshold distance in a decimal degree. allowable errir in distance.
+            outDir (float): a path to the directory to output files.
+            upaCache (str): a path to the cached file.
+            cacheType (str): a type of data format for upaCache.
+        """
         # general settings
         self.undef = -9999.
         self.buf = 5
@@ -28,14 +57,21 @@ class Forcing(object):
     def readPoints(self, filename, domain=None, dask=False):
         """
         Read csv file containing points data to map on the model grid cells.
-        filename (str): path to the csv file (see below for the format.)
-        domain (list,optional): Your domain info [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
-        dask (bool,optional): Using dask to perform lazy loading or not.
-            Effective for a large csv file (and your domain is only a part of that file).
-        Input csv format:
-        ex.)
-            id,lat,lon,uparea
-            0,35.11,-120.24,300.25
+
+        Args:
+            filename (str): path to the csv file (see below for the format.)
+            domain (list): default None. Your domain info [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
+            dask (bool): default False. Using dask to perform lazy loading or not.
+                Effective for a large csv file (and your domain is only a part of that file).
+
+        Returns:
+            pandas.dataframe
+
+        Note:   
+         Input csv format:
+            ex.)
+                id,lat,lon,uparea
+                0,35.11,-120.24,300.25
         """
         if dask == True:
             df = dd.read_csv(filename).set_index("id")
@@ -52,6 +88,10 @@ class Forcing(object):
         """
         Read cached model domain.
         This cache should be created from the lispy.PreProcess.(mf)preprocess()
+
+        Args:
+            filename (str): a file path of cached file.  
+            kind (nc): data format type
         """
         if kind == "nc":
             data = (xr.open_dataset(filename)).to_array()
@@ -66,19 +106,24 @@ class Forcing(object):
                       idName="id", sDate=None, eDate=None):
         """
         Read discharge time series for points. The id of this file should be correspond with pointInfoFile.
-        Data Type:
-            netCDF:
-                values: (time,points)
-                dim_1: time
-                dim_2: id
-        Args: dschgFile(str): a path to the discharge file which contains discharge timesiries over multiple points.
-              kind(str): default "nc"; an input data type
-              timeName(str): default "time"; a dimension name for a time axis in your data
-              idName(str): default "id"; a dimension name for a id (location-id) axis in your data
-              sDate(datetime.datetime): default None; starting date to truncate data. 
-                                        Use all data length if not specified.
-              eDate(datetime.datetime): default None; ending date to truncate data.
-                                        Use all data length if not specified.
+
+        Args: 
+            dschgFile(str): a path to the discharge file which contains discharge timesiries over multiple points.
+            kind(str): default "nc"; an input data type
+            timeName(str): default "time"; a dimension name for a time axis in your data
+            idName(str): default "id"; a dimension name for a id (location-id) axis in your data
+            sDate(datetime.datetime): default None; starting date to truncate data. 
+                                      Use all data length if not specified.
+            eDate(datetime.datetime): default None; ending date to truncate data.
+                                      Use all data length if not specified.
+        
+        Returns:
+            dschg (numpy.ndarray): discharge time series in a shape of (time, id)
+            tmIdx (numpy.ndarray): object array for time index.
+            idIdx (numpy.ndarray): float or integer array for river ids.
+
+        Note:
+            Data Type: netCDF[values: (time,points), dim_1: time, dim_2: id]
         """
         if kind == "nc":
             data = (xr.open_dataset(dschgFile)).to_array()
@@ -96,6 +141,15 @@ class Forcing(object):
     def writeBdy(self, ID, discharge, tDiffs, oName):
         """
         Write .bdy file for the model.
+
+        Args:
+            ID (int): river id
+            discharge (numpy.ndarray): 1D discharge time series
+            tDiffs (int): total number of seconds for your simulation
+            oName (str): output path
+
+        Returns:
+            None
         """
         line1 = "inflow_%d\n" % ID
         line2 = "%d seconds\n" % len(tDiffs)
@@ -109,7 +163,15 @@ class Forcing(object):
     # main modules
     def locate(self, filename, domain=None, dask=False):
         """
-        Locate points on the model grids.
+        Locate points on the model grids from your original lat lon information.
+        
+        Args:
+            filename (str): a file path which contains river reach information.
+            domain (list): default None. a list of float numbers [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon].
+            dask (bool): default False. if true, use dask to read your filename.
+
+        Returns:
+            pandas.dataframe that contains latitudes and longitudes (adjusted for your model grid) for ids.
         """
         df = self.readPoints(filename, domain=domain, dask=dask)
         ids = df.index.tolist()
@@ -142,20 +204,22 @@ class Forcing(object):
                     ex="lisfld"):
         """
         Making a input forcing file set (.dci and .bdy) for your domain and forcing data.
-        Arguments:
+
+        Args:
             dschgFile (str): discharge file path. Currently only netCDF format is supported.
-                See lispy.Forcing.readDischarge() for the specific format of the netCDF.
+                             See Forcing.readDischarge() for the specific format of the netCDF.
             pointInfoFile (str): forcing point information file. Currently only csv format is supported.
-                See lispy.Forcing.readPoints() for the specific format of this csv.
+                                 See Forcing.readPoints() for the specific format of this csv.
             domain (list,optional): Your domain info [llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
             dask (bool,optional): Using dask to perform lazy loading or not.
-                Effective for a large csv file (and your domain is only a part of that file).
+                                  Effective for a large csv file (and your domain is only a part of that file).
             kind (str, optional): data type of the discharge file. currently only netCDF format is supported.
             timeName (str, optional): the dimension name of time axis in your discharge data.
             idName (str, optional): the dimension name of id axis in your discharge data.
             ex (str, optional): experiment name that will appear on your output files.
-        User caution:
-            Current version only supports the "P" source identifer and QVAR in a subgrid configuration.
+
+        Returns:
+            None
         """
         dschg, tmIdx, idIdx = self.readDischarge(
             dschgFile, kind=kind, timeName=timeName, idName=idName, sDate=sDate, eDate=eDate)
@@ -197,12 +261,18 @@ class Forcing(object):
 def locatePoint(uparea, fLat, fLon, upaMap, lats, lons, thsld, buf, distance):
     """
     Locate a point on a map based on upstream area information.
-        uparea: upstream area of a point
-        fLat: latitude of a point
-        fLon: longitude of a point
-        upaMap: upstream area 2d map array of base model grids
-        lats: latitude series of base model grids
-        lons: longitude series of base model grids
+    
+    Args:
+        uparea (float): upstream area of a point
+        fLat (float): latitude of a point
+        fLon (float): longitude of a point
+        upaMap (numpy.ndarray): upstream area 2d map array of base model grids
+        lats (numpy.ndarray): latitude series of base model grids
+        lons (numpy.ndarray): longitude series of base model grids
+
+    Returns:
+        lat (float): adjusted latitude for your model grid
+        lon (float): adjusted longutide for your model grid
     """
     latIdx = np.argmin(((lats - fLat)**2))
     lonIdx = np.argmin(((lons - fLon)**2))
@@ -233,12 +303,17 @@ def locatePoint(uparea, fLat, fLon, upaMap, lats, lons, thsld, buf, distance):
 def mapPoints(upareas, fLats, fLons, upaMap, lats, lons, thsld, buf, distance):
     """
     Iterate self.locatePoint to create latlon series representing each point on a model grids.
+
+    Args:
         upareas (list): list of uparea information of points to locate.
         fLats (list): list of latitude information of points to locate.
         fLons (list): list of longitude information of points to locate.
-        upaMap: upstream area 2d map array of base model grids
-        lats : latitude series of base model grids
-        lons: longitude series of base model grids
+        upaMap (numpy.ndarray): upstream area 2d map array of base model grids.
+        lats (numpy.ndarray): latitude series of base model grids.
+        lons (numpy.ndarray): longitude series of base model grids.
+
+    Returns:
+        mCorrds (list): list of adjusted (lat, lon).
     """
     mCoords = [
         locatePoint(upareas[i], fLats[i], fLons[i], upaMap, lats, lons, thsld,
