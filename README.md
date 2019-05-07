@@ -33,7 +33,10 @@ First and foremost, you need to prepare the input files for the simulation. The 
 - __River discharge data (netCDF4)__
   * shoud contain time and id (river identification number or string) coordinates.  
 Once your data is ready:
-```import lifpy.PreProcess as lfp```  
-```elevPath = "list of path to the surface elevation files"```  
-```upaPath = "list of path to the surface upstream area size files"```
-```wthPath = "list of path to the surface river width files"```  
+```
+import lifpy.PreProcess as lfp  
+  
+elevPath = "list of path to the surface elevation files"  
+upaPath = "list of path to the surface upstream area size files"  
+wthPath = "list of path to the surface river width files"  
+```
