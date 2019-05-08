@@ -25,6 +25,8 @@ Instead, you can also use enviromnent.yml in this repository to create a environ
 
 ## Prepare for the simulation  
 Please also see the ```demo.ipynb``` for the specific example to use this library.  
+Please note that I restricted access to the example directory to the internal access due to its large size and data lisence.  
+I will create and upload a light pseudo dataset in the future commit. Still, the demo.ipynb shows the necessary procedure and results to use this module.  
   
 First and foremost, you need to prepare the input files for the simulation. The current version of lifpy needs the following datasets in specific format:
 - __Hydrography data (GeoTiff)__
