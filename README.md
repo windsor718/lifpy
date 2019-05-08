@@ -59,6 +59,7 @@ Next, the input forcing dataset is required. The current version of lifpy needs 
 - __Discharge point information (csv)__  
 This is a file to define the coordinates (lat/lon) and upstream area of each river id in your river discharge data.  
   * The sample format is:  
+  
     |id|lat|lon|uparea|
     |---|---|---|---|  
     |0|35.11|-120.24|300.25|
