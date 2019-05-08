@@ -35,8 +35,12 @@ class PreProcess(object):
         Attributes:
 
             undef (float): the undefined, or no data, value.
+            outDir (str): a directory to store output
         """
         self.undef = -9999.
+        self.outDir = "./out/"
+        if not os.path.exists(self.outDir):
+            os.makedirs(self.outDir)
 
     # Basic IO components
     def readGeoTiff(self,
@@ -196,6 +200,7 @@ class PreProcess(object):
             None
         """
         df = pd.DataFrame(array2D)
+        oName = os.path.join()
         with open(fileName, "w") as f:
             f.write(header)
         with open(fileName, "a") as f:
@@ -222,7 +227,7 @@ class PreProcess(object):
         with open(fileName, "a") as f:
             df.to_csv(f, header=False, index=False)
         del df
-        gc.colloct()
+        gc.collect()
 
     # Specific operation toward the hydrography
     def defineRivers(self, upareaMap, thsld):
@@ -329,7 +334,7 @@ class PreProcess(object):
             bandNum=bandNum,
             doamin=domain)
         header = self.makeHeader(lats, lons, cellsize)
-        oName = "%s.dem.ascii" % prefix
+        oName = os.path.join(self.outDir, "%s.dem.ascii" % prefix)
         self.dump(elv, header, oName)
         # make river network
         uparea, *_ = self.readGeoTiff(
@@ -348,11 +353,11 @@ class PreProcess(object):
             bandNum=bandNum,
             domain=domain)
         width = self.maskNoRivers(width, rivMap)
-        oName = "%s.width.asc" % prefix
+        oName = os.path.join(self.outDir, "%s.width.asc" % prefix)
         self.dump(width, header, oName)
         # make .bank.asc
         banke = self.maskNoRivers(elv, header, thsld)
-        oNmae = "%s.bank.asc" % prefix
+        oNmae = os.path.join(self.outDir, "%s.bank.asc" % prefix)
         self.dump(banke, header, oName)
 
     def mfpreprocess(self,
@@ -407,7 +412,7 @@ class PreProcess(object):
             memLon=memLon)
         header = self.makeHeader(lats, lons, cellsize)
         print("output file informaton:\n%s"%header)
-        oName = "%s.dem.ascii" % prefix
+        oName = os.path.join(self.outDir, "%s.dem.ascii" % prefix)
         print("%s" % oName)
         self.daskDump(elv, header, oName)
 
@@ -439,13 +444,13 @@ class PreProcess(object):
             memLat=memLat,
             memLon=memLon)
         width = self.lazyMaskNoRivers(width, rivMap)
-        oName = "%s.width.asc" % prefix
+        oName = os.path.join(self.outDir, "%s.width.asc" % prefix)
         self.daskDump(width, header, oName)
         print("%s" % oName)
 
         #make .bank.asc
         banke = self.lazyMaskNoRivers(elv, rivMap)
-        oName = "%s.bank.asc" % prefix
+        oName = os.path.join(self.outDir, "%s.bank.asc" % prefix)
         self.daskDump(banke, header, oName)
         print("%s" % oName)
 

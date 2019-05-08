@@ -43,7 +43,7 @@ import lifpy as lfp
 elevPath = "list of path to the surface elevation files"  
 upaPath = "list of path to the surface upstream area size files"  
 wthPath = "list of path to the surface river width files"  
-thsld = "the minimum size of upstrea area. The pixel above this number will be considered as rivers"  
+thsld = "the minimum size of upstrea area. The pixel whose upsream area size is above this number will be considered as rivers"  
 nCols = "number of files for a longitudinal axis"  
 nRaws = "number of files for a latitudinal axis"  
 
@@ -63,3 +63,35 @@ This is a file to define the coordinates (lat/lon) and upstream area of each riv
     |id|lat|lon|uparea|
     |---|---|---|---|  
     |0|35.11|-120.24|300.25|
+  
+After you prepared the data, you can make forcing data with:
+```python
+dschgFile = "path to your discharge data"
+pointInfoFile = "path to your point info data"
+
+lifpy.Forcing.makeForcing(dschgFile, pointInfoFile)
+```
+These are the files you need to run the LISFLOOD-FP (subgrid).  
+  
+# Visualizing results  
+Current lifpy only supports the instant visualization of a snapshot (at specific time) of output file (e.g. res-001.txt). Please see the Todo in the document to see the future implementation.  
+  
+lifpy has a higher API to instant visualization to check your simulation:
+```python
+fileName = "your results (.txt) from LISFLOOD-FP"
+name = "name of the result (e.g. width, elevation, etc.)"
+cacheFile = "path to the cached netCDF file that lifpy.PreProcess.mfpreprocess generates."
+# in default it is in cache/uparea.nc
+img = lifpy.Visualize.show(fileName, name, cacheFile)
+```
+This will output a Bokeh interactive plot, and you can also save as a html link with:
+```python
+import bokeh.io
+outName = "outputName.html"
+bokeh.io.save(img, outName)
+```
+or just using a simple wrapper of lifpy:
+```python
+lifpy.Visualize.save(img, outName)
+```
+You can save as a png or svg plot directly with bokeh library, but usually it is useful to open the html link and adjust the plot whatever you like, and save the plot as png from that interective plot.  

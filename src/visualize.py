@@ -91,7 +91,7 @@ class Visualize(object):
         return dArray
 
     # visualization modules
-    def plotMap(self, dArray, name, width=500, height=250, cmap="gist_earth_r", alpha=0,5):
+    def plotMap(self, dArray, name, width=500, height=250, cmap="gist_earth_r", alpha=0.5):
         """
         plot the DataArray onto the map.
         
