@@ -16,7 +16,7 @@ The dependency of lifpy is:
   
 If you are using Anaconda,  
 
-```conda create -n lifpy python=3.6 xarray rasterio geiviews holoviews```  
+```conda create -n lifpy python=3.6 xarray rasterio geoviews holoviews```  
 
 should create a necessary environment.  
 Instead, you can also use enviromnent.yml in this repository to create a environment:  
@@ -32,6 +32,7 @@ First and foremost, you need to prepare the input files for the simulation. The 
   * Surface elevation  
 - __River discharge data (netCDF4)__
   * shoud contain time and id (river identification number or string) coordinates.  
+  
 Once your data is ready:
 ```python
 import lifpy as lfp  
@@ -47,3 +48,14 @@ nRaws = "number of files for a latitudinal axis"
 lfp.PreProcess.mfpreprocess(upaPath,elvPath,wthPath,thsld,nCols,nRaws)  
 ```
 will create a topography data required for your lisflood-fp simulation.  
+  
+Next, the input forcing dataset is required. The current version of lifpy needs the following datasets in specific format:  
+- __Discharge data (netCDF)__  
+  * discharge time series at each point (2d array)
+  * time index (dimension 1)
+  * river reach id (dimension 2)
+- __Discharge point information (csv)__  
+This is a file to define the coordinates (lat/lon) and upstream area of each river id in your river discharge data.  
+The sample format is:  
+    id, lat, lon, uparea
+    0, 35.11, -120.24, 300.25
