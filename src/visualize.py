@@ -8,6 +8,7 @@ Class:
     Visualize()
 
 Todo:
+    * faster and efficient IO
     * discharge hydrograph
     * visualize multiple output over time
 """
@@ -37,7 +38,7 @@ class Visualize(object):
         mapTiles = gv.WMTS(wmts)
         return mapTiles
 
-    def readData(filename, headerNum=6):
+    def readData(self, filename, headerNum=6):
         """read output file from LISFLOOD-FP.
         
         Args:
@@ -106,10 +107,10 @@ class Visualize(object):
         Returns:
             bokeh image object
         """
-        dataset = gv.DataSet(dArray)
+        dataset = gv.Dataset(dArray)
         img = dataset.to(gv.Image, ["lon","lat"], name)
         img_shaded = datashader.regrid(img)
-        img_out = img.opts(width=width, height=height, alpha=alpha, colorbar=True, cmap=cmap, tools=["hover"]) * self.mapTiles
+        img_out = img_shaded.opts(width=width, height=height, alpha=alpha, colorbar=True, cmap=cmap, tools=["hover"]) * self.mapTiles
         return img_out
 
     # higher ranked API for easy use
@@ -129,7 +130,7 @@ class Visualize(object):
         lats, lons = self.readCache(cacheFile)
         dArray = self.constDataArray(df, lats, lons, name, undef=undef)
         img = self.plotMap(dArray, name)
-        return ing
+        return img
 
     def saveHtml(self, img, outName):
         """save bokeh object in a outName html file."""

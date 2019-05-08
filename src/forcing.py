@@ -201,7 +201,7 @@ class Forcing(object):
                     kind="nc",
                     timeName="time",
                     idName="id",
-                    ex="lisfld"):
+                    prefix="lisfld"):
         """
         Making a input forcing file set (.dci and .bdy) for your domain and forcing data.
 
@@ -216,7 +216,7 @@ class Forcing(object):
             kind (str, optional): data type of the discharge file. currently only netCDF format is supported.
             timeName (str, optional): the dimension name of time axis in your discharge data.
             idName (str, optional): the dimension name of id axis in your discharge data.
-            ex (str, optional): experiment name that will appear on your output files.
+            prefix (str, optional): experiment name that will appear on your output files.
 
         Returns:
             None
@@ -238,12 +238,12 @@ class Forcing(object):
         df["bType"] = bType
         df["inflwName"] = inflwName
         df = df[["identifer", "lon", "lat", "bType", "inflwName"]]
-        oName = os.path.join(self.outDir, "setting_%s.bci" % ex)
+        oName = os.path.join(self.outDir, "setting_%s.bci" % prefix)
         df.to_csv(oName, index=False, header=False, sep=" ")
         print(oName)
 
         # write it into bdy file.
-        oName = os.path.join(self.outDir, "inflow_%s.bdy" % ex)
+        oName = os.path.join(self.outDir, "inflow_%s.bdy" % prefix)
         with open(oName,"w") as f:
             sDate = np.datetime_as_string(tmIdx[0])
             eDate = np.datetime_as_string(tmIdx[-1])

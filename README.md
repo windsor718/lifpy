@@ -76,15 +76,18 @@ These are the files you need to run the LISFLOOD-FP (subgrid).
 # Visualizing results  
 Current lifpy only supports the instant visualization of a snapshot (at specific time) of output file (e.g. res-001.txt). Please see the Todo in the document to see the future implementation.  
   
-lifpy has a higher API to instant visualization to check your simulation:
+lifpy has a higher API for instant visualization to check your simulation:
 ```python
 fileName = "your results (.txt) from LISFLOOD-FP"
 name = "name of the result (e.g. width, elevation, etc.)"
 cacheFile = "path to the cached netCDF file that lifpy.PreProcess.mfpreprocess generates."
-# in default it is in cache/uparea.nc
+# in default it is in cache/uparea.nc  
 img = lifpy.Visualize.show(fileName, name, cacheFile)
 ```
-This will output a Bokeh interactive plot, and you can also save as a html link with:
+This function uses a datashader as a pipeline, and those grids in the figure is dynamically regirdded which enables smooth loading.  
+This is useful when you see a big picture of your simulation (which has more than a millions of data points in a large scale hi-res modeling) which is otherwise very expensive to visualize.  
+
+This will output a Bokeh interactive plot, and you can also save as a html link with:  
 ```python
 import bokeh.io
 outName = "outputName.html"
