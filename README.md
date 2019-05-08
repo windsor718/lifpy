@@ -34,9 +34,16 @@ First and foremost, you need to prepare the input files for the simulation. The 
   * shoud contain time and id (river identification number or string) coordinates.  
 Once your data is ready:
 ```python
-import lifpy.PreProcess as lfp  
-  
+import lifpy as lfp  
+
+# define required arguments  
 elevPath = "list of path to the surface elevation files"  
 upaPath = "list of path to the surface upstream area size files"  
 wthPath = "list of path to the surface river width files"  
+thsld = "the minimum size of upstrea area. The pixel above this number will be considered as rivers"  
+nCols = "number of files for a longitudinal axis"  
+nRaws = "number of files for a latitudinal axis"  
+
+lfp.PreProcess.mfpreprocess(upaPath,elvPath,wthPath,thsld,nCols,nRaws)  
 ```
+will create a topography data required for your lisflood-fp simulation.  
