@@ -24,7 +24,7 @@ Instead, you can also use enviromnent.yml in this repository to create a environ
 ```conda create -n environment.yml```  
 
 ## Prepare for the simulation  
-Please also see the demo.ipynb for the specific example to use this library.  
+Please also see the ```demo.ipynb``` for the specific example to use this library.  
   
 First and foremost, you need to prepare the input files for the simulation. The current version of lifpy needs the following datasets in specific format:
 - __Hydrography data (GeoTiff)__
@@ -51,7 +51,7 @@ lfp.PreProcess.mfpreprocess(upaPath,elvPath,wthPath,thsld,nCols,nRaws)
 ```
 will create a topography data required for your lisflood-fp simulation.  
   
-Next, the input forcing dataset is required. The current version of lifpy needs the following datasets in specific format:  
+Next, the input forcing dataset is required. The current version of lifpy needs the following datasets in a specific format:  
 - __Discharge data (netCDF)__  
   * discharge time series at each point (2d array)
   * time index (dimension 1)
@@ -59,5 +59,6 @@ Next, the input forcing dataset is required. The current version of lifpy needs 
 - __Discharge point information (csv)__  
 This is a file to define the coordinates (lat/lon) and upstream area of each river id in your river discharge data.  
   * The sample format is:  
-    id, lat, lon, uparea  
-    0, 35.11, -120.24, 300.25
+    |id|lat|lon|uparea|
+    |---|---|---|---|  
+    |0|35.11|-120.24|300.25|
