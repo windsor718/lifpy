@@ -153,12 +153,14 @@ class PreProcess(object):
         urcrnrlat = domain[2]
         urcrnrlon = domain[3]
         data = dataset.sel(lat=slice(urcrnrlat, llcrnrlat))
-        if len(dataset["lat"]) == 0:
+        if len(data["lat"]) == 0:
             sys.stderr.write("Runtime Warning: Got a latitudinal shape of 0. \
                  Check if the order of the latitudinal axis is NS. \
-                 If not, the xarray will return a empty array.")
-        data = dataset.sel(lon=slince(llcrnrlon, urlrnrlon))
-        return dataset
+                 If not, the xarray will return a empty array.\n")
+        data = data.sel(lon=slice(llcrnrlon, urcrnrlon))
+        if len(data["lon"]) == 0:
+            sys.stderr.write("RuntimeWarning: Got a longitudinal shape of 0.\n")
+        return data
 
     def makeHeader(self, lats, lons, cellsize, order="NS"):
         """Make a header for the lisflood-fp model
@@ -471,5 +473,6 @@ if __name__ == "__main__":
     nCols = 2
     nRows = 1
     thsld = 24.04
+    domain = [36,-102,37,-97] #[llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
     test = PreProcess()
-    test.mfpreprocess(upaPaths, elvPaths, wthPaths, thsld, nCols, nRows)
+    test.mfpreprocess(upaPaths, elvPaths, wthPaths, thsld, nCols, nRows, domain=domain)
