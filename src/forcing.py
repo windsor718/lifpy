@@ -82,6 +82,7 @@ class Forcing(object):
             df = df[df.lat < domain[2]]  # urcrnrlat
             df = df[df.lon > domain[1]]  # llcrnrlon
             df = df[df.lon < domain[3]]  # urcrnrlon
+        print(df)
         return df.compute() if dask else df
 
     def readCachedMap(self, filename, kind="nc"):
@@ -324,8 +325,9 @@ def mapPoints(upareas, fLats, fLons, upaMap, lats, lons, thsld, buf, distance):
 
 if __name__ == "__main__":
     test = Forcing()
-    dschgFile = "./deploy/discharge_missouri.nc"
-    pointInfoFile = "./deploy/pointInfo_missouri.csv"
+    dschgFile = "../examples/discharge/discharge_sample.nc"
+    pointInfoFile = "../examples/discharge/pointInfoFile_sample.csv"
     sDate = datetime.datetime(1984,1,1)
     eDate = datetime.datetime(1985,1,1)
-    test.makeForcing(dschgFile,pointInfoFile,sDate=sDate,eDate=eDate)
+    domain = domain = [35,-97.5,40,-92.5] #[llcrnrlat, llcrnrlon, urcrnrlat, urcrnrlon]
+    test.makeForcing(dschgFile,pointInfoFile,sDate=sDate,eDate=eDate,domain=domain,dask=True)

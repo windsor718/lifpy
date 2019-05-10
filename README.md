@@ -1,6 +1,6 @@
 # LISFLOOD-FPy (lifpy)  
 lifpy is a Python-based wrapper to prepare data, handle the model, and visualize results from the hydraulic model, LISFLOOD-FP.  
-lifpy is developed especially for the use of large scale modeling and benefitted from lazy loading and parallelization function of xarray and dask.  
+lifpy is developed especially for the use of large scale modeling (subgrid configuration) and benefitted from lazy loading and parallelization function of xarray and dask.  
 ## Setup the environment  
 The dependency of lifpy is:  
 - xarray  
@@ -76,14 +76,14 @@ lifpy.Forcing.makeForcing(dschgFile, pointInfoFile)
 These are the files you need to run the LISFLOOD-FP (subgrid).  
   
 # Visualizing results  
-Current lifpy only supports the instant visualization of a snapshot (at specific time) of output file (e.g. res-001.txt). Please see the Todo in the document to see the future implementation.  
+Current lifpy only supports the instant visualization of a snapshot (at specific time) of output file (e.g. res-001.wd). Please see the Todo in the document to see the future implementation.  
   
 lifpy has a higher API for instant visualization to check your simulation:
 ```python
-fileName = "your results (.txt) from LISFLOOD-FP"
+fileName = "your results (ascii) from LISFLOOD-FP"
 name = "name of the result (e.g. width, elevation, etc.)"
 cacheFile = "path to the cached netCDF file that lifpy.PreProcess.mfpreprocess generates."
-# in default it is in cache/uparea.nc  
+# by default it is in cache/uparea.nc  
 img = lifpy.Visualize.show(fileName, name, cacheFile)
 ```
 This function uses a datashader as a pipeline, and those grids in the figure is dynamically regirdded which enables smooth loading.  
