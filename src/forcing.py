@@ -82,7 +82,6 @@ class Forcing(object):
             df = df[df.lat < domain[2]]  # urcrnrlat
             df = df[df.lon > domain[1]]  # llcrnrlon
             df = df[df.lon < domain[3]]  # urcrnrlon
-        print(df)
         return df.compute() if dask else df
 
     def readCachedMap(self, filename, kind="nc"):
