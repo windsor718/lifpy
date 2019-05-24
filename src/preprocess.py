@@ -206,7 +206,7 @@ class PreProcess(object):
         with open(fileName, "w") as f:
             f.write(header)
         with open(fileName, "a") as f:
-            df.to_csv(f, header=False, index=False)
+            df.to_csv(f, header=False, index=False, sep=" ")
 
     def daskDump(self, darray2D, header, fileName):
         """dump dask array and header into the file (filename).
@@ -227,7 +227,7 @@ class PreProcess(object):
         with open(fileName, "w") as f:
             f.write(header)
         with open(fileName, "a") as f:
-            df.to_csv(f, header=False, index=False)
+            df.to_csv(f, header=False, index=False, sep=" ")
         del df
         gc.collect()
 
