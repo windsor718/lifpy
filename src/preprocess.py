@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import d8tod4
 
 
 class PreProcess(object):
@@ -295,6 +296,12 @@ class PreProcess(object):
             os.makedirs("./cache/")
         data = data.to_netcdf("./cache/%s.nc" % name)
 
+    def convertD8toD4(self, elv, flwdir, dirDict):
+    """Convert D8 DEM into D4 DEM by adusting elevation."""
+        
+        elv = d8tod4(elv, flwdir, dirDict)
+        return elv
+    
     # Main modules to make input topography data
     def preprocess(self,
                    upaPath,
@@ -305,7 +312,9 @@ class PreProcess(object):
                    prefix="lisfld",
                    latName="y",
                    lonName="x",
-                   bandNum=0):
+                   bandNum=0,
+                   D8=True,
+                   dirDict={64:"N",128:"NE",1:"E",2:"SE",4:"S",8:"SW",16:"W",32:"NW",0:"RM",-1:"ID",-9:"O"}):
         """
         Main module to process hydrography data into the lisflood format:
         Assuming that each file will contain your whole modeled domain.
@@ -321,6 +330,8 @@ class PreProcess(object):
             latName (str): default y. latitudinal axis name of your geotiff data.
             lonName (str): default x. longitudinal axis name of your geotiff data.
             bandNum (int): default 0. a band number for your data in your geotiff data.
+            D8 (bool): default True. The flowdirection type of the hydrography. If True, the flow direction of the hydrography used is D8.
+            dirDict (dict): The flow direction digits and strings.
         
         Returns:
             None
@@ -328,6 +339,13 @@ class PreProcess(object):
         Note:
             This function dump the processed data to your directory and returns None.
         """
+        # read flow direction
+        flwdir, *_ = self.readGeoTiff(
+            flwdirPath,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            doamin=domain)
         # make .dem.ascii
         elv, lats, lons, cellsize = self.readGeoTiff(
             elvPath,
@@ -335,10 +353,11 @@ class PreProcess(object):
             lonName=lonName,
             bandNum=bandNum,
             doamin=domain)
+        if D8:
+            elv = self.convertD8toD4(elv,flwdir,dirDict)
         header = self.makeHeader(lats, lons, cellsize)
         oName = os.path.join(self.outDir, "%s.dem.ascii" % prefix)
         self.dump(elv, header, oName)
-        # make river network
         uparea, *_ = self.readGeoTiff(
             upaPath,
             latName=latName,
@@ -375,7 +394,9 @@ class PreProcess(object):
                      lonName="x",
                      bandNum=0,
                      memLat=1,
-                     memLon=1):
+                     memLon=1,
+                     D8=True,
+                     dirDict={64:"N",128:"NE",1:"E",2:"SE",4:"S",8:"SW",16:"W",32:"NW",0:"RM",-1:"ID",-9:"O"}):
         """
         Main module to process hydrography data into the lisflood format:
         Same as preprocess but from multiple files. Designed to reduce required memory as small as possible.
@@ -394,6 +415,8 @@ class PreProcess(object):
             bandNum (int): default 0. a band number for your data in your geotiff data.
             memLat (int): default 1. a number of chunks in latitudinal axis to split your domain as a dask array.
             memLon (int): default 1. a number of chunks in longidudinal axis to split your domain as a dask array.
+            D8 (bool): default True. The flowdirection type of the hydrography. If True, the flow direction of the hydrography used is D8.
+            dirDict (dict): The flow direction digits and strings.
 
         Returns:
             None
@@ -401,6 +424,14 @@ class PreProcess(object):
         Note:
             This function dump the processed data to your directory and returns None.
         """
+        # read flow direction
+        flwdir, *_ = self.readGeoTiff(
+            flwdirPath,
+            latName=latName,
+            lonName=lonName,
+            bandNum=bandNum,
+            doamin=domain)
+        print(flwdir)
         # make .dem.ascii
         elv, lats, lons, cellsize = self.mfreadGeoTiff(
             elvPath,
@@ -412,6 +443,8 @@ class PreProcess(object):
             domain=domain,
             memLat=memLat,
             memLon=memLon)
+        if D8:
+            elv = self.convertD8toD4(elv,flwdir)
         header = self.makeHeader(lats, lons, cellsize)
         print("output file informaton:\n%s"%header)
         oName = os.path.join(self.outDir, "%s.dem.ascii" % prefix)
