@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import d8tod4
+from . import d8tod4
 
 
 class PreProcess(object):
@@ -38,7 +38,7 @@ class PreProcess(object):
             undef (float): the undefined, or no data, value.
             outDir (str): a directory to store output
         """
-        self.undef = -9999.
+        self.undef = -9999
         self.outDir = "./out/"
         if not os.path.exists(self.outDir):
             os.makedirs(self.outDir)
@@ -113,7 +113,6 @@ class PreProcess(object):
         for row in range(0, nRows):
             rowTiles = []
             for col in range(0, nCols):
-                print(files[idx])
                 data = xr.open_rasterio(files[idx]).rename({
                     latName: "lat",
                     lonName: "lon"
@@ -297,16 +296,27 @@ class PreProcess(object):
         data = data.to_netcdf("./cache/%s.nc" % name)
 
     def convertD8toD4(self, elv, flwdir, dirDict):
-    """Convert D8 DEM into D4 DEM by adusting elevation."""
+        """
+        Convert D8 DEM into D4 DEM by adusting elevation.
+
+        Args:
+            elv (numpy.ndarray): dem array
+            flwdir (numpy.ndarray): flow direction array
+            dirDict (dict): dictionary to match digits and direction strings.
         
-        elv = d8tod4(elv, flwdir, dirDict)
-        return elv
+        Returns:
+            elv (numpy.ndarray): modified elevation.
+        """
+        elv, modLoc = d8tod4.d8tod4(elv.astype(np.float64), flwdir.astype(np.float64), dirDict)
+        d8tod4.check(elv.astype(np.float64), flwdir.astype(np.float64), dirDict)
+        return elv, modLoc
     
     # Main modules to make input topography data
     def preprocess(self,
                    upaPath,
                    elvPath,
                    wthPath,
+                   fdrPath,
                    thsld,
                    domain=None,
                    prefix="lisfld",
@@ -324,6 +334,7 @@ class PreProcess(object):
             upaPath (str): path to the geotiff file for uparea size information.
             elvPath (str): path to the geotiff file for surface elevation information.
             wthPath (str): path to the geotiff file for river width information.
+            fdrPath (str): path to the geotiff file for the flow direction.
             thsld (float): threshold value of uparea size to extract rivers.
             domain (list): default None. list of float to define your domain. [llcrnrlat,llcrnrlon,urcrnrlat,urcrnrlon]
             prefix (str): default lisfld. prefix of outputted data.
@@ -341,18 +352,18 @@ class PreProcess(object):
         """
         # read flow direction
         flwdir, *_ = self.readGeoTiff(
-            flwdirPath,
+            fdrPath,
             latName=latName,
             lonName=lonName,
             bandNum=bandNum,
-            doamin=domain)
+            domain=domain)
         # make .dem.ascii
         elv, lats, lons, cellsize = self.readGeoTiff(
             elvPath,
             latName=latName,
             lonName=lonName,
             bandNum=bandNum,
-            doamin=domain)
+            domain=domain)
         if D8:
             elv = self.convertD8toD4(elv,flwdir,dirDict)
         header = self.makeHeader(lats, lons, cellsize)
@@ -385,6 +396,7 @@ class PreProcess(object):
                      upaPath,
                      elvPath,
                      wthPath,
+                     fdrPath,
                      thsld,
                      nCols,
                      nRows,
@@ -405,6 +417,7 @@ class PreProcess(object):
             upaPath (str): list of pathes to the geotiff file for uparea size information.
             elvPath (str): list of pathes to the geotiff file for surface elevation information.
             wthPath (str): list of pathes to the geotiff file for river width information.
+            fdrPath (str): list of pathes to the geotiff file for the flow direction.
             thsld (float): threshold value of uparea size to extract rivers.
             nCols (int): integer number of your geotiff files for a longitudinal axis.
             nRaws (int): integer number of your geotiff files for a latitudinal axis.
@@ -425,13 +438,16 @@ class PreProcess(object):
             This function dump the processed data to your directory and returns None.
         """
         # read flow direction
-        flwdir, *_ = self.readGeoTiff(
-            flwdirPath,
+        flwdir, *_ = self.mfreadGeoTiff(
+            fdrPath,
+            nCols,
+            nRows,
             latName=latName,
             lonName=lonName,
             bandNum=bandNum,
-            doamin=domain)
-        print(flwdir)
+            domain=domain,
+            memLat=memLat,
+            memLon=memLon)
         # make .dem.ascii
         elv, lats, lons, cellsize = self.mfreadGeoTiff(
             elvPath,
@@ -444,12 +460,22 @@ class PreProcess(object):
             memLat=memLat,
             memLon=memLon)
         if D8:
-            elv = self.convertD8toD4(elv,flwdir)
+            print("D8 to D4 conversion activated:\nmodifying dem...")
+            elv = elv.compute()
+            flwdir = flwdir.compute()
+            elv, modLoc = self.convertD8toD4(elv,flwdir,dirDict) # returns numpy array
+            elv = ds.array.from_array(elv, chunks=[int(elv.shape[0]/memLat),int(elv.shape[1]/memLon)])
+            flwdir = ds.array.from_array(flwdir.astype(np.float64), chunks=[int(elv.shape[0]/memLat),int(elv.shape[1]/memLon)])
+            #del flwdir
+            #gc.collect()
         header = self.makeHeader(lats, lons, cellsize)
         print("output file informaton:\n%s"%header)
         oName = os.path.join(self.outDir, "%s.dem.ascii" % prefix)
         print("%s" % oName)
         self.daskDump(elv, header, oName)
+        oName = os.path.join(self.outDir, "%s.dir.ascii" % prefix)
+        print("%s" % oName)
+        self.daskDump(flwdir, header, oName)
 
         #make river network
         uparea, *_ = self.mfreadGeoTiff(
@@ -463,6 +489,10 @@ class PreProcess(object):
             memLat=memLat,
             memLon=memLon)
         self.cacheAsNc(uparea, lats, lons, "uparea")
+        #if D8:
+        #    print("D8 to D4 conversion: uparea")
+        #    uparea = d8tod4.snapD4((uparea.compute()).astype(np.float64), modLoc, thsld) # returns numpy array
+        #    uparea = ds.array.from_array(uparea, chunks=[int(elv.shape[0]/memLat),int(elv.shape[1]/memLon)])
         rivMap = self.defineRivers(uparea, thsld)
         del uparea
         gc.collect()
@@ -479,12 +509,20 @@ class PreProcess(object):
             memLat=memLat,
             memLon=memLon)
         width = self.lazyMaskNoRivers(width, rivMap)
+        #if D8:
+        #    print("D8 to D4 conversion: width")
+        #    width = d8tod4.snapD4((width.compute()).astype(np.float64), modLoc, (rivMap.compute()).astype(np.float64)) # returns numpy array
+        #    width = ds.array.from_array(width, chunks=[int(elv.shape[0]/memLat),int(elv.shape[1]/memLon)])
         oName = os.path.join(self.outDir, "%s.width.asc" % prefix)
         self.daskDump(width, header, oName)
         print("%s" % oName)
 
         #make .bank.asc
         banke = self.lazyMaskNoRivers(elv, rivMap)
+        #if D8:
+        #    print("D8 to D4 conversion: banke")
+        #    banke = d8tod4.snapD4((banke.compute()).astype(np.float64), modLoc, (rivMap.compute()).astype(np.float64)) # returns numpy array
+        #    banke = ds.array.from_array(banke, chunks=[int(elv.shape[0]/memLat),int(elv.shape[1]/memLon)])
         oName = os.path.join(self.outDir, "%s.bank.asc" % prefix)
         self.daskDump(banke, header, oName)
         print("%s" % oName)

@@ -238,7 +238,7 @@ class Forcing(object):
         df["bType"] = bType
         df["inflwName"] = inflwName
         df = df[["identifer", "lon", "lat", "bType", "inflwName"]]
-        oName = os.path.join(self.outDir, "setting_%s.bci" % prefix)
+        oName = os.path.join(self.outDir, "inflow_%s.bci" % prefix)
         df.to_csv(oName, index=False, header=False, sep=" ")
         print(oName)
 

@@ -87,12 +87,28 @@ class Visualize(object):
             DataArray of your output (xarray.DataArray)
         """
         data = df.values
-        data[data == -9999] = np.nan
+        data[data == undef] = np.nan
         dArray = xr.DataArray(data, coords={"lat":lats, "lon":lons}, dims=["lat","lon"]).rename(name)
         return dArray
 
+    def constDataSet(self, dArrayList, dateList):
+        """
+        constract DataSet from xarray.DataArray. Create new dimention "time".
+        
+        Args:
+            dArrayList (list): lisf of DataArray.
+            timeList (list): list of datetime.datetime. The order should be identical to the dArrayList.
+        
+        Returns:
+            xarray.DataSet
+        """
+        dataset = xr.concat(dArrayList, "time")
+        dataset["time"] = dateList
+
+        return dataset
+
     # visualization modules
-    def plotMap(self, dArray, name, width=500, height=250, cmap="gist_earth_r", alpha=0.5):
+    def plotMap(self, dArray, name, width=500, height=250, cmap="gist_earth_r", dataShader=True, alpha=0.5):
         """
         plot the DataArray onto the map.
         
@@ -109,12 +125,13 @@ class Visualize(object):
         """
         dataset = gv.Dataset(dArray)
         img = dataset.to(gv.Image, ["lon","lat"], name)
-        img_shaded = datashader.regrid(img)
-        img_out = img_shaded.opts(width=width, height=height, alpha=alpha, colorbar=True, cmap=cmap, tools=["hover"]) * self.mapTiles
+        if dataShader:
+            img = datashader.regrid(img)
+        img_out = img.opts(width=width, height=height, alpha=alpha, colorbar=True, cmap=cmap, tools=["hover"]) * self.mapTiles
         return img_out
 
     # higher ranked API for easy use
-    def show(self, filename, name, cacheFile, undef=-9999):
+    def show(self, filename, name, cacheFile, dataShader=True, undef=-9999):
         """Higher API for an instant visualization of 2D map output.
         
         Args:
@@ -124,12 +141,42 @@ class Visualize(object):
             undef (int or float): undefined value in your output data
 
         Returns:
-            image object
+            bokeh image object
         """
         df = self.readData(filename)
         lats, lons = self.readCache(cacheFile)
         dArray = self.constDataArray(df, lats, lons, name, undef=undef)
-        img = self.plotMap(dArray, name)
+        img = self.plotMap(dArray, name, dataShader=dataShader)
+        return img
+
+    def animate(self, filenamefmt, name, cacheFile, startIdx, endIdx, startDate, freq, dataShader=True, undef=-9999):
+        """
+        Higher API for an instant visualization of 2D map output with time sliders.
+        
+        Args:
+            filenamefmt (str): a file name format (path format) to visualize.
+            name (str): a name of your output (e.g. width, elevation, etc.)
+            cacheFile (str): a file path to your cached netcdf data (should be in cache/ directory)
+            startIdx (int): starting index to visualize.
+            endIdx (int): ending index to visualize.
+            startDate (datetime.datetime): starting datetime
+            dataShader (bool): using datashader or not.
+            undef (int or float): undefined value in your output data
+
+        Returns:
+            image object
+        """
+        periods = endIdx - startIdx
+        dateList = pd.date_range(start=startDate, periods=periods, freq=freq)
+        lats, lons = self.readCache(cacheFile)
+        dArrayList = []
+        for i in range(startIdx, endIdx):
+            filename = filenamefmt%i
+            df = self.readData(filename)
+            dArray = self.constDataArray(df, lats, lons, name, undef=undef)
+            dArrayList.append(dArray)
+        dSet = self.constDataSet(dArrayList, dateList)
+        img = self.plotMap(dSet, name, dataShader=dataShader)
         return img
 
     def saveHtml(self, img, outName):
